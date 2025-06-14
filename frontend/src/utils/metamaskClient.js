@@ -14,7 +14,7 @@ export async function getEthereumProvider() {
     await new Promise((resolve) =>
       window.addEventListener("ethereum#initialized", resolve, {
         once: true,
-      })
+ })
     );
   }
 

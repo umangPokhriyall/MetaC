@@ -1,21 +1,7 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
-import rollupNodePolyFill from 'rollup-plugin-polyfill-node';
-
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  optimizeDeps: {
-    include: ['buffer'],
-  },
-  resolve: {
-    alias: {
-      buffer: 'buffer/',
-    },
-  },
-  build: {
-    rollupOptions: {
-      plugins: [rollupNodePolyFill()],
-    },
-  },
-});
+  plugins: [react() , tailwindcss(), ],
+})

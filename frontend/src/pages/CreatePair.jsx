@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 
 export default function CreatePair() {
   const [tokenA, setTokenA] = useState(null);
-  const [tokenB, setTokenB] = useState(null);
+  const [tokenB, zsetTokenB] = useState(null);
   const [pairAddress, setPairAddress] = useState("");
   const [status, setStatus] = useState("");
   const [existingPairs, setExistingPairs] = useState([]);
