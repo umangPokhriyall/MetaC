@@ -20,7 +20,25 @@ export default function Swap() {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
-  const [liveSwapData, setLiveSwapData] = useState([]); // In-memory swap data
+  const [liveSwapData, setLiveSwapData] = useState(() => {
+    // Load persisted swap data from localStorage
+    try {
+      const saved = localStorage.getItem("liveSwapData");
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.warn("Failed to load saved swap data:", error);
+      return [];
+    }
+  }); // Persistent swap data
+
+  // Save live swap data to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("liveSwapData", JSON.stringify(liveSwapData));
+    } catch (error) {
+      console.warn("Failed to save swap data:", error);
+    }
+  }, [liveSwapData]);
 
   useEffect(() => {
     const fetchEstimates = async () => {
@@ -144,7 +162,12 @@ export default function Swap() {
         pairAddress: pairAddress,
       };
 
-      setLiveSwapData((prev) => [...prev.slice(-19), newSwapData]); // Keep last 20 swaps
+      setLiveSwapData((prev) => {
+        const updated = [...prev, newSwapData];
+        // Keep only last 50 swaps and remove data older than 24 hours
+        const oneDayAgo = Date.now() / 1000 - 24 * 60 * 60;
+        return updated.filter((swap) => swap.timestamp > oneDayAgo).slice(-50);
+      });
 
       showSuccess("Swap successful!");
 
@@ -409,6 +432,30 @@ export default function Swap() {
                   />
                 </svg>
               </button>
+              {liveSwapData.length > 0 && (
+                <button
+                  onClick={() => {
+                    setLiveSwapData([]);
+                    localStorage.removeItem("liveSwapData");
+                  }}
+                  className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Clear live data"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
