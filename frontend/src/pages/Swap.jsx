@@ -3,6 +3,7 @@ import { useWallet } from "../contexts/WalletContext";
 import TokenSelector from "../components/TokenSelector";
 import ActionButton from "../components/ActionButton";
 import TransactionList from "../components/TransactionList";
+import { showSuccess, showError, showWarning } from "../utils/toast";
 
 import { getPairAddress, getReserves, swap } from "../utils/contractUtils";
 import { getAllUserSwaps } from "../utils/transactionLog";
@@ -19,6 +20,7 @@ export default function Swap() {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
+  const [liveSwapData, setLiveSwapData] = useState([]); // In-memory swap data
 
   useEffect(() => {
     const fetchEstimates = async () => {
@@ -121,7 +123,7 @@ export default function Swap() {
 
   const handleSwap = async () => {
     if (!tokenA || !tokenB || !amountIn || !pairAddress) {
-      alert("Please fill all fields.");
+      showWarning("Please fill all fields.");
       return;
     }
 
@@ -129,7 +131,22 @@ export default function Swap() {
       setLoading(true);
       const parsedAmountIn = ethers.parseUnits(amountIn, 18);
       await swap(pairAddress, parsedAmountIn, tokenA.address);
-      alert("✅ Swap successful!");
+
+      // Add swap data to memory for real-time chart updates
+      const newSwapData = {
+        timestamp: Date.now() / 1000,
+        price: parseFloat(amountOut) / parseFloat(amountIn),
+        volume: parseFloat(amountIn),
+        inputToken: tokenA.symbol,
+        outputToken: tokenB.symbol,
+        inputAmount: parseFloat(amountIn),
+        outputAmount: parseFloat(amountOut),
+        pairAddress: pairAddress,
+      };
+
+      setLiveSwapData((prev) => [...prev.slice(-19), newSwapData]); // Keep last 20 swaps
+
+      showSuccess("Swap successful!");
 
       // Refresh transactions after successful swap
       try {
@@ -144,7 +161,7 @@ export default function Swap() {
       }
     } catch (err) {
       console.error("Swap failed:", err);
-      alert("❌ Swap failed.");
+      showError("Swap failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -192,7 +209,7 @@ export default function Swap() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto mt-8">
+    <div className="max-w-7xl mx-auto mt-8">
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
@@ -203,148 +220,149 @@ export default function Swap() {
         </p>
       </div>
 
-      {/* Main Swap Card */}
-      <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-8">
-        <div className="space-y-6">
-          {/* From Token */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-gray-700 font-semibold">From</label>
-              {address && (
-                <span className="text-sm text-gray-500">Balance: 0.00</span>
-              )}
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-purple-200 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <input
-                    type="number"
-                    placeholder="0.0"
-                    value={amountIn}
-                    onChange={(e) => setAmountIn(e.target.value)}
-                    className="w-full bg-transparent text-2xl font-semibold text-gray-800 placeholder-gray-400 focus:outline-none"
-                  />
-                  <div className="text-sm text-gray-500 mt-1">
-                    {amountIn && tokenA
-                      ? `~$${(parseFloat(amountIn) * 2000).toFixed(2)}`
-                      : ""}
+      {/* Side-by-side Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Side - Swap Interface */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-8">
+          <div className="space-y-6">
+            {/* From Token */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-gray-700 font-semibold">From</label>
+                {address && (
+                  <span className="text-sm text-gray-500">Balance: 0.00</span>
+                )}
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-purple-200 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      placeholder="0.0"
+                      value={amountIn}
+                      onChange={(e) => setAmountIn(e.target.value)}
+                      className="w-full bg-transparent text-2xl font-semibold text-gray-800 placeholder-gray-400 focus:outline-none"
+                    />
+                    <div className="text-sm text-gray-500 mt-1">
+                      {amountIn && tokenA
+                        ? `~$${(parseFloat(amountIn) * 2000).toFixed(2)}`
+                        : ""}
+                    </div>
                   </div>
+                  <TokenSelector selected={tokenA} onSelect={setTokenA} />
                 </div>
-                <TokenSelector selected={tokenA} onSelect={setTokenA} />
               </div>
             </div>
-          </div>
 
-          {/* Switch Button */}
-          <div className="flex justify-center">
-            <button
-              onClick={handleSwitch}
-              className="bg-white border-2 border-gray-200 hover:border-purple-300 text-gray-600 hover:text-purple-600 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 group"
-            >
-              <svg
-                className="w-6 h-6 transform group-hover:rotate-180 transition-transform duration-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {/* Switch Button */}
+            <div className="flex justify-center">
+              <button
+                onClick={handleSwitch}
+                className="bg-white border-2 border-gray-200 hover:border-purple-300 text-gray-600 hover:text-purple-600 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 group"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* To Token */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-gray-700 font-semibold">To</label>
-              {address && (
-                <span className="text-sm text-gray-500">Balance: 0.00</span>
-              )}
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-4 border-2 border-transparent">
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="0.0"
-                    value={amountOut}
-                    disabled
-                    className="w-full bg-transparent text-2xl font-semibold text-gray-600 placeholder-gray-400 focus:outline-none"
+                <svg
+                  className="w-6 h-6 transform group-hover:rotate-180 transition-transform duration-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
                   />
-                  <div className="text-sm text-gray-500 mt-1">
-                    {amountOut && tokenB
-                      ? `~$${(parseFloat(amountOut) * 2000).toFixed(2)}`
-                      : ""}
+                </svg>
+              </button>
+            </div>
+
+            {/* To Token */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-gray-700 font-semibold">To</label>
+                {address && (
+                  <span className="text-sm text-gray-500">Balance: 0.00</span>
+                )}
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 border-2 border-transparent">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="0.0"
+                      value={amountOut}
+                      disabled
+                      className="w-full bg-transparent text-2xl font-semibold text-gray-600 placeholder-gray-400 focus:outline-none"
+                    />
+                    <div className="text-sm text-gray-500 mt-1">
+                      {amountOut && tokenB
+                        ? `~$${(parseFloat(amountOut) * 2000).toFixed(2)}`
+                        : ""}
+                    </div>
                   </div>
+                  <TokenSelector selected={tokenB} onSelect={setTokenB} />
                 </div>
-                <TokenSelector selected={tokenB} onSelect={setTokenB} />
               </div>
             </div>
-          </div>
 
-          {/* Swap Details */}
-          {tokenA && tokenB && amountIn && amountOut && (
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Rate</span>
-                <span className="font-medium">
-                  1 {tokenA.symbol} ={" "}
-                  {(parseFloat(amountOut) / parseFloat(amountIn)).toFixed(6)}{" "}
-                  {tokenB.symbol}
-                </span>
+            {/* Swap Details */}
+            {tokenA && tokenB && amountIn && amountOut && (
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Rate</span>
+                  <span className="font-medium">
+                    1 {tokenA.symbol} ={" "}
+                    {(parseFloat(amountOut) / parseFloat(amountIn)).toFixed(6)}{" "}
+                    {tokenB.symbol}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Price Impact</span>
+                  <span className="font-medium text-green-600">&lt; 0.01%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Network Fee</span>
+                  <span className="font-medium">~$2.50</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Price Impact</span>
-                <span className="font-medium text-green-600">&lt; 0.01%</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Network Fee</span>
-                <span className="font-medium">~$2.50</span>
-              </div>
-            </div>
-          )}
-
-          {/* Swap Button */}
-          <button
-            onClick={handleSwap}
-            disabled={loading || !tokenA || !tokenB || !amountIn}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-none"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Swapping...
-              </div>
-            ) : !tokenA || !tokenB ? (
-              "Select Tokens"
-            ) : !amountIn ? (
-              "Enter Amount"
-            ) : (
-              `Swap ${tokenA.symbol} for ${tokenB.symbol}`
             )}
-          </button>
 
-          {/* Pair Info */}
-          {pairAddress && (
-            <div className="text-center">
-              <p className="text-xs text-gray-400">
-                Trading Pair:{" "}
-                <span className="font-mono">
-                  {pairAddress.slice(0, 8)}...{pairAddress.slice(-6)}
-                </span>
-              </p>
-            </div>
-          )}
+            {/* Swap Button */}
+            <button
+              onClick={handleSwap}
+              disabled={loading || !tokenA || !tokenB || !amountIn}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-none"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Swapping...
+                </div>
+              ) : !tokenA || !tokenB ? (
+                "Select Tokens"
+              ) : !amountIn ? (
+                "Enter Amount"
+              ) : (
+                `Swap ${tokenA.symbol} for ${tokenB.symbol}`
+              )}
+            </button>
+
+            {/* Pair Info */}
+            {pairAddress && (
+              <div className="text-center">
+                <p className="text-xs text-gray-400">
+                  Trading Pair:{" "}
+                  <span className="font-mono">
+                    {pairAddress.slice(0, 8)}...{pairAddress.slice(-6)}
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Price Chart */}
-      {tokenA && tokenB && (
-        <div className="mt-8 bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
+        {/* Right Side - Price Chart */}
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">
               {tokenA && tokenB ? `${tokenA.symbol}/${tokenB.symbol}` : "Token"}{" "}
@@ -352,7 +370,9 @@ export default function Swap() {
             </h3>
             <div className="flex items-center gap-2">
               <div className="text-sm text-gray-500">
-                {priceHistory.length > 0
+                {liveSwapData.length > 0
+                  ? `${liveSwapData.length} live trades`
+                  : priceHistory.length > 0
                   ? `${priceHistory.length} trades`
                   : "Demo data"}
               </div>
@@ -393,9 +413,11 @@ export default function Swap() {
           </div>
 
           {(() => {
-            // Use real data if available, otherwise show demo data
+            // Use live swap data first, then historical data, then demo data
             const chartData =
-              priceHistory.length > 0
+              liveSwapData.length > 0
+                ? liveSwapData
+                : priceHistory.length > 0
                 ? priceHistory
                 : [
                     {
@@ -593,8 +615,8 @@ export default function Swap() {
                   </div>
                 </div>
 
-                {/* Demo Data Notice */}
-                {priceHistory.length === 0 && (
+                {/* Data Source Notice */}
+                {liveSwapData.length === 0 && priceHistory.length === 0 && (
                   <div className="mt-4 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
                       <span>📊</span>
@@ -602,13 +624,55 @@ export default function Swap() {
                     </div>
                   </div>
                 )}
+                {liveSwapData.length > 0 && (
+                  <div className="mt-4 text-center">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                      <span>🔴</span>
+                      <span>Live trading data from your swaps!</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Swap History */}
+                {liveSwapData.length > 0 && (
+                  <div className="mt-6 border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                      Recent Live Swaps
+                    </h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {liveSwapData
+                        .slice(-5)
+                        .reverse()
+                        .map((swap, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between text-xs bg-gray-50 rounded-lg p-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-green-500">●</span>
+                              <span>
+                                {swap.inputAmount.toFixed(4)} {swap.inputToken}{" "}
+                                → {swap.outputAmount.toFixed(4)}{" "}
+                                {swap.outputToken}
+                              </span>
+                            </div>
+                            <div className="text-gray-500">
+                              {new Date(
+                                swap.timestamp * 1000
+                              ).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
         </div>
-      )}
+      </div>
 
-      {/* Recent Transactions */}
+      {/* Recent Transactions - Full Width Below */}
       <div className="mt-8 bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">

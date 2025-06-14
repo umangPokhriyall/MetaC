@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useWallet } from "../contexts/WalletContext";
 import { getLPBalance } from "../utils/contractUtils";
+import { showError } from "../utils/toast";
 import logo from "../assets/MetaCowLogo.png";
 
 export default function Navbar() {
@@ -34,7 +35,7 @@ export default function Navbar() {
   const handleConnect = async () => {
     const result = await connectWallet();
     if (!result.success) {
-      alert(result.error);
+      showError(result.error);
     }
   };
 

@@ -3,6 +3,7 @@ import { useWallet } from "../contexts/WalletContext";
 import TokenSelector from "../components/TokenSelector";
 import ActionButton from "../components/ActionButton";
 import TransactionList from "../components/TransactionList";
+import { showSuccess, showError, showWarning } from "../utils/toast";
 import {
   getPairAddress,
   getLPBalance,
@@ -56,7 +57,7 @@ export default function Liquidity() {
 
   const handleAdd = async () => {
     if (!pairAddress || !tokenA || !tokenB || !signer) {
-      alert("Please select tokens and ensure wallet is connected.");
+      showWarning("Please select tokens and ensure wallet is connected.");
       return;
     }
 
@@ -72,7 +73,7 @@ export default function Liquidity() {
       numAmountA <= 0 ||
       numAmountB <= 0
     ) {
-      alert("Please enter valid amounts greater than 0 for both tokens.");
+      showWarning("Please enter valid amounts greater than 0 for both tokens.");
       return;
     }
 
@@ -112,10 +113,10 @@ export default function Liquidity() {
       await (await tokenBContract.approve(pairAddress, parsedB)).wait();
 
       await addLiquidity(pairAddress, parsedA, parsedB);
-      alert("✅ Liquidity added!");
+      showSuccess("Liquidity added successfully!");
     } catch (err) {
       console.error("Add liquidity failed:", err);
-      alert("❌ Add liquidity failed.");
+      showError("Add liquidity failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -123,7 +124,7 @@ export default function Liquidity() {
 
   const handleRemove = async () => {
     if (!pairAddress || !amountLP) {
-      alert("Please enter LP amount to remove.");
+      showWarning("Please enter LP amount to remove.");
       return;
     }
 
@@ -132,12 +133,12 @@ export default function Liquidity() {
     const currentLP = parseFloat(lpBalance);
 
     if (!amountLP || isNaN(numAmountLP) || numAmountLP <= 0) {
-      alert("Please enter a valid LP amount greater than 0.");
+      showWarning("Please enter a valid LP amount greater than 0.");
       return;
     }
 
     if (numAmountLP > currentLP) {
-      alert(`Insufficient LP balance. You have ${lpBalance} LP tokens.`);
+      showError(`Insufficient LP balance. You have ${lpBalance} LP tokens.`);
       return;
     }
 
@@ -145,7 +146,7 @@ export default function Liquidity() {
     try {
       const parsedLP = ethers.parseUnits(amountLP.toString(), 18);
       await removeLiquidity(pairAddress, parsedLP);
-      alert("💥 Liquidity removed successfully!");
+      showSuccess("Liquidity removed successfully!");
 
       // Refresh LP balance and transactions
       const lp = await getLPBalance(pairAddress, address);
@@ -162,7 +163,7 @@ export default function Liquidity() {
       setAmountLP("");
     } catch (err) {
       console.error("Remove liquidity failed:", err);
-      alert("❌ Remove liquidity failed.");
+      showError("Remove liquidity failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -173,10 +174,10 @@ export default function Liquidity() {
     setLoading(true);
     try {
       await claimRewards(pairAddress);
-      alert("🎉 Rewards claimed!");
+      showSuccess("Rewards claimed successfully!");
     } catch (err) {
       console.error("Claim rewards failed:", err);
-      alert("❌ Claim failed.");
+      showError("Claim failed. Please try again.");
     } finally {
       setLoading(false);
     }

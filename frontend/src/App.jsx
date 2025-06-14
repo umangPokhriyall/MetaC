@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import { WalletProvider } from "./contexts/WalletContext";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -20,6 +21,7 @@ export default function App() {
               <Route path="/create-pair" element={<CreatePair />} />
             </Routes>
           </main>
+          <Toaster />
         </div>
       </Router>
     </WalletProvider>
