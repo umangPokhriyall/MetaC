@@ -347,199 +347,264 @@ export default function Swap() {
         <div className="mt-8 bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">
-              {tokenA.symbol}/{tokenB.symbol} Price Chart
+              {tokenA && tokenB ? `${tokenA.symbol}/${tokenB.symbol}` : "Token"}{" "}
+              Price Chart
             </h3>
-            <div className="text-sm text-gray-500">
-              {priceHistory.length > 0
-                ? `${priceHistory.length} trades`
-                : "No trade data"}
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-500">
+                {priceHistory.length > 0
+                  ? `${priceHistory.length} trades`
+                  : "Demo data"}
+              </div>
+              <button
+                onClick={async () => {
+                  if (!address) return;
+                  setLoadingTransactions(true);
+                  try {
+                    const transactions = await getAllUserSwaps(address, 20);
+                    setRecentTransactions(transactions.slice(0, 5));
+                    const priceData = processPriceHistory(transactions);
+                    setPriceHistory(priceData);
+                  } catch (err) {
+                    console.error("Failed to refresh chart:", err);
+                  } finally {
+                    setLoadingTransactions(false);
+                  }
+                }}
+                disabled={loadingTransactions || !address}
+                className="p-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh chart data"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
 
-          {priceHistory.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">📈</span>
-              </div>
-              <p>No trading data available for this pair</p>
-              <p className="text-sm mt-1">
-                Make some swaps to see the price chart!
-              </p>
-            </div>
-          ) : (
-            <div className="relative">
-              {/* Chart Container */}
-              <div className="h-64 w-full bg-gradient-to-b from-purple-50 to-blue-50 rounded-2xl p-4 overflow-hidden">
-                <svg
-                  width="100%"
-                  height="100%"
-                  viewBox="0 0 800 200"
-                  className="overflow-visible"
-                >
-                  {/* Grid Lines */}
-                  <defs>
-                    <pattern
-                      id="grid"
-                      width="80"
-                      height="40"
-                      patternUnits="userSpaceOnUse"
-                    >
-                      <path
-                        d="M 80 0 L 0 0 0 40"
-                        fill="none"
-                        stroke="#e5e7eb"
-                        strokeWidth="1"
-                        opacity="0.5"
-                      />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
+          {(() => {
+            // Use real data if available, otherwise show demo data
+            const chartData =
+              priceHistory.length > 0
+                ? priceHistory
+                : [
+                    {
+                      timestamp: Date.now() / 1000 - 3600,
+                      price: 1.2,
+                      volume: 100,
+                    },
+                    {
+                      timestamp: Date.now() / 1000 - 2700,
+                      price: 1.25,
+                      volume: 150,
+                    },
+                    {
+                      timestamp: Date.now() / 1000 - 1800,
+                      price: 1.18,
+                      volume: 200,
+                    },
+                    {
+                      timestamp: Date.now() / 1000 - 900,
+                      price: 1.32,
+                      volume: 120,
+                    },
+                    { timestamp: Date.now() / 1000, price: 1.28, volume: 180 },
+                  ];
 
-                  {/* Price Line */}
-                  {priceHistory.length > 1 &&
-                    (() => {
-                      const maxPrice = Math.max(
-                        ...priceHistory.map((p) => p.price)
-                      );
-                      const minPrice = Math.min(
-                        ...priceHistory.map((p) => p.price)
-                      );
-                      const priceRange = maxPrice - minPrice || 1;
+            return (
+              <div className="relative">
+                {/* Chart Container */}
+                <div className="h-64 w-full bg-gradient-to-b from-purple-50 to-blue-50 rounded-2xl p-4 overflow-hidden">
+                  <svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 800 200"
+                    className="overflow-visible"
+                  >
+                    {/* Grid Lines */}
+                    <defs>
+                      <pattern
+                        id="grid"
+                        width="80"
+                        height="40"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <path
+                          d="M 80 0 L 0 0 0 40"
+                          fill="none"
+                          stroke="#e5e7eb"
+                          strokeWidth="1"
+                          opacity="0.5"
+                        />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
 
-                      const points = priceHistory
-                        .map((point, index) => {
-                          const x =
-                            (index / (priceHistory.length - 1)) * 760 + 20;
-                          const y =
-                            180 - ((point.price - minPrice) / priceRange) * 160;
-                          return `${x},${y}`;
-                        })
-                        .join(" ");
+                    {/* Price Line */}
+                    {chartData.length > 1 &&
+                      (() => {
+                        const maxPrice = Math.max(
+                          ...chartData.map((p) => p.price)
+                        );
+                        const minPrice = Math.min(
+                          ...chartData.map((p) => p.price)
+                        );
+                        const priceRange = maxPrice - minPrice || 1;
 
-                      const gradientPoints = priceHistory.map(
-                        (point, index) => {
-                          const x =
-                            (index / (priceHistory.length - 1)) * 760 + 20;
+                        const points = chartData
+                          .map((point, index) => {
+                            const x =
+                              (index / (chartData.length - 1)) * 760 + 20;
+                            const y =
+                              180 -
+                              ((point.price - minPrice) / priceRange) * 160;
+                            return `${x},${y}`;
+                          })
+                          .join(" ");
+
+                        const gradientPoints = chartData.map((point, index) => {
+                          const x = (index / (chartData.length - 1)) * 760 + 20;
                           const y =
                             180 - ((point.price - minPrice) / priceRange) * 160;
                           return { x, y };
-                        }
-                      );
+                        });
 
-                      return (
-                        <>
-                          {/* Gradient Fill */}
-                          <defs>
-                            <linearGradient
-                              id="priceGradient"
-                              x1="0%"
-                              y1="0%"
-                              x2="0%"
-                              y2="100%"
-                            >
-                              <stop
-                                offset="0%"
-                                stopColor="#8b5cf6"
-                                stopOpacity="0.3"
-                              />
-                              <stop
-                                offset="100%"
-                                stopColor="#3b82f6"
-                                stopOpacity="0.1"
-                              />
-                            </linearGradient>
-                          </defs>
-                          <path
-                            d={`M ${gradientPoints[0].x},180 L ${points} L ${
-                              gradientPoints[gradientPoints.length - 1].x
-                            },180 Z`}
-                            fill="url(#priceGradient)"
-                          />
+                        return (
+                          <>
+                            {/* Gradient Fill */}
+                            <defs>
+                              <linearGradient
+                                id="priceGradient"
+                                x1="0%"
+                                y1="0%"
+                                x2="0%"
+                                y2="100%"
+                              >
+                                <stop
+                                  offset="0%"
+                                  stopColor="#8b5cf6"
+                                  stopOpacity="0.3"
+                                />
+                                <stop
+                                  offset="100%"
+                                  stopColor="#3b82f6"
+                                  stopOpacity="0.1"
+                                />
+                              </linearGradient>
+                            </defs>
+                            <path
+                              d={`M ${gradientPoints[0].x},180 L ${points} L ${
+                                gradientPoints[gradientPoints.length - 1].x
+                              },180 Z`}
+                              fill="url(#priceGradient)"
+                            />
 
-                          {/* Price Line */}
-                          <polyline
-                            points={points}
-                            fill="none"
-                            stroke="url(#gradient)"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
+                            {/* Price Line */}
+                            <polyline
+                              points={points}
+                              fill="none"
+                              stroke="url(#gradient)"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
 
-                          {/* Gradient for line */}
-                          <defs>
-                            <linearGradient
-                              id="gradient"
-                              x1="0%"
-                              y1="0%"
-                              x2="100%"
-                              y2="0%"
-                            >
-                              <stop offset="0%" stopColor="#8b5cf6" />
-                              <stop offset="100%" stopColor="#3b82f6" />
-                            </linearGradient>
-                          </defs>
+                            {/* Gradient for line */}
+                            <defs>
+                              <linearGradient
+                                id="gradient"
+                                x1="0%"
+                                y1="0%"
+                                x2="100%"
+                                y2="0%"
+                              >
+                                <stop offset="0%" stopColor="#8b5cf6" />
+                                <stop offset="100%" stopColor="#3b82f6" />
+                              </linearGradient>
+                            </defs>
 
-                          {/* Data Points */}
-                          {gradientPoints.map((point, index) => (
-                            <circle
-                              key={index}
-                              cx={point.x}
-                              cy={point.y}
-                              r="4"
-                              fill="white"
-                              stroke="#8b5cf6"
-                              strokeWidth="2"
-                              className="hover:r-6 transition-all cursor-pointer"
-                            >
-                              <title>
-                                Price: {priceHistory[index].price.toFixed(6)}{" "}
-                                {tokenB.symbol}/{tokenA.symbol}
-                                {"\n"}Time:{" "}
-                                {new Date(
-                                  priceHistory[index].timestamp * 1000
-                                ).toLocaleString()}
-                                {"\n"}Volume:{" "}
-                                {priceHistory[index].volume.toFixed(4)}{" "}
-                                {tokenA.symbol}
-                              </title>
-                            </circle>
-                          ))}
-                        </>
-                      );
-                    })()}
-                </svg>
+                            {/* Data Points */}
+                            {gradientPoints.map((point, index) => (
+                              <circle
+                                key={index}
+                                cx={point.x}
+                                cy={point.y}
+                                r="4"
+                                fill="white"
+                                stroke="#8b5cf6"
+                                strokeWidth="2"
+                                className="hover:r-6 transition-all cursor-pointer"
+                              >
+                                <title>
+                                  Price: {chartData[index].price.toFixed(6)}{" "}
+                                  {tokenB ? tokenB.symbol : "TokenB"}/
+                                  {tokenA ? tokenA.symbol : "TokenA"}
+                                  {"\n"}Time:{" "}
+                                  {new Date(
+                                    chartData[index].timestamp * 1000
+                                  ).toLocaleString()}
+                                  {"\n"}Volume:{" "}
+                                  {chartData[index].volume.toFixed(4)}{" "}
+                                  {tokenA ? tokenA.symbol : "TokenA"}
+                                </title>
+                              </circle>
+                            ))}
+                          </>
+                        );
+                      })()}
+                  </svg>
+                </div>
+
+                {/* Chart Info */}
+                <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+                  <div className="text-center">
+                    <div className="text-gray-600">Current Price</div>
+                    <div className="font-semibold text-purple-600">
+                      {chartData.length > 0
+                        ? chartData[chartData.length - 1].price.toFixed(6)
+                        : "0.000000"}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-600">24h High</div>
+                    <div className="font-semibold text-green-600">
+                      {chartData.length > 0
+                        ? Math.max(...chartData.map((p) => p.price)).toFixed(6)
+                        : "0.000000"}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-600">24h Low</div>
+                    <div className="font-semibold text-red-600">
+                      {chartData.length > 0
+                        ? Math.min(...chartData.map((p) => p.price)).toFixed(6)
+                        : "0.000000"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Demo Data Notice */}
+                {priceHistory.length === 0 && (
+                  <div className="mt-4 text-center">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                      <span>📊</span>
+                      <span>Demo chart - Make swaps to see real data!</span>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Chart Info */}
-              <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="text-gray-600">Current Price</div>
-                  <div className="font-semibold text-purple-600">
-                    {priceHistory.length > 0
-                      ? priceHistory[priceHistory.length - 1].price.toFixed(6)
-                      : "0.000000"}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-600">24h High</div>
-                  <div className="font-semibold text-green-600">
-                    {priceHistory.length > 0
-                      ? Math.max(...priceHistory.map((p) => p.price)).toFixed(6)
-                      : "0.000000"}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-600">24h Low</div>
-                  <div className="font-semibold text-red-600">
-                    {priceHistory.length > 0
-                      ? Math.min(...priceHistory.map((p) => p.price)).toFixed(6)
-                      : "0.000000"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
