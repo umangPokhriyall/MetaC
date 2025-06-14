@@ -53,15 +53,43 @@ export default function Liquidity() {
   }, [tokenA, tokenB, address]);
 
   const handleAdd = async () => {
-    if (!pairAddress || !amountA || !amountB || !tokenA || !tokenB || !signer) {
-      alert("Please fill all fields and ensure wallet is connected.");
+    if (!pairAddress || !tokenA || !tokenB || !signer) {
+      alert("Please select tokens and ensure wallet is connected.");
+      return;
+    }
+
+    // Validate amounts are valid numbers greater than 0
+    const numAmountA = parseFloat(amountA);
+    const numAmountB = parseFloat(amountB);
+
+    if (
+      !amountA ||
+      !amountB ||
+      isNaN(numAmountA) ||
+      isNaN(numAmountB) ||
+      numAmountA <= 0 ||
+      numAmountB <= 0
+    ) {
+      alert("Please enter valid amounts greater than 0 for both tokens.");
       return;
     }
 
     setLoading(true);
     try {
-      const parsedA = ethers.parseUnits(amountA, 18);
-      const parsedB = ethers.parseUnits(amountB, 18);
+      console.log("Adding liquidity with amounts:", {
+        amountA,
+        amountB,
+        numAmountA,
+        numAmountB,
+      });
+
+      const parsedA = ethers.parseUnits(amountA.toString(), 18);
+      const parsedB = ethers.parseUnits(amountB.toString(), 18);
+
+      console.log("Parsed amounts:", {
+        parsedA: parsedA.toString(),
+        parsedB: parsedB.toString(),
+      });
 
       const tokenAContract = new ethers.Contract(
         tokenA.address,
@@ -188,7 +216,14 @@ export default function Liquidity() {
                     <label className="text-gray-700 font-semibold">
                       First Token
                     </label>
-                    <div className="bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-blue-200 transition-colors">
+                    <div
+                      className={`bg-gray-50 rounded-2xl p-4 border-2 transition-colors ${
+                        amountA &&
+                        (isNaN(parseFloat(amountA)) || parseFloat(amountA) <= 0)
+                          ? "border-red-200 focus-within:border-red-300"
+                          : "border-transparent focus-within:border-blue-200"
+                      }`}
+                    >
                       <TokenSelector selected={tokenA} onSelect={setTokenA} />
                       <input
                         type="number"
@@ -196,9 +231,18 @@ export default function Liquidity() {
                         value={amountA}
                         onChange={(e) => setAmountA(e.target.value)}
                         className="w-full bg-transparent text-xl font-semibold text-gray-800 placeholder-gray-400 focus:outline-none mt-3"
+                        min="0"
+                        step="0.000001"
                       />
                       <div className="text-sm text-gray-500 mt-1">
                         Balance: 0.00
+                        {amountA &&
+                          (isNaN(parseFloat(amountA)) ||
+                            parseFloat(amountA) <= 0) && (
+                            <span className="text-red-500 ml-2">
+                              • Enter a valid amount
+                            </span>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -207,7 +251,14 @@ export default function Liquidity() {
                     <label className="text-gray-700 font-semibold">
                       Second Token
                     </label>
-                    <div className="bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-blue-200 transition-colors">
+                    <div
+                      className={`bg-gray-50 rounded-2xl p-4 border-2 transition-colors ${
+                        amountB &&
+                        (isNaN(parseFloat(amountB)) || parseFloat(amountB) <= 0)
+                          ? "border-red-200 focus-within:border-red-300"
+                          : "border-transparent focus-within:border-blue-200"
+                      }`}
+                    >
                       <TokenSelector selected={tokenB} onSelect={setTokenB} />
                       <input
                         type="number"
@@ -215,9 +266,18 @@ export default function Liquidity() {
                         value={amountB}
                         onChange={(e) => setAmountB(e.target.value)}
                         className="w-full bg-transparent text-xl font-semibold text-gray-800 placeholder-gray-400 focus:outline-none mt-3"
+                        min="0"
+                        step="0.000001"
                       />
                       <div className="text-sm text-gray-500 mt-1">
                         Balance: 0.00
+                        {amountB &&
+                          (isNaN(parseFloat(amountB)) ||
+                            parseFloat(amountB) <= 0) && (
+                            <span className="text-red-500 ml-2">
+                              • Enter a valid amount
+                            </span>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -258,7 +318,15 @@ export default function Liquidity() {
                 <button
                   onClick={handleAdd}
                   disabled={
-                    loading || !tokenA || !tokenB || !amountA || !amountB
+                    loading ||
+                    !tokenA ||
+                    !tokenB ||
+                    !amountA ||
+                    !amountB ||
+                    parseFloat(amountA) <= 0 ||
+                    parseFloat(amountB) <= 0 ||
+                    isNaN(parseFloat(amountA)) ||
+                    isNaN(parseFloat(amountB))
                   }
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-none"
                 >
@@ -269,8 +337,13 @@ export default function Liquidity() {
                     </div>
                   ) : !tokenA || !tokenB ? (
                     "Select Tokens"
-                  ) : !amountA || !amountB ? (
-                    "Enter Amounts"
+                  ) : !amountA ||
+                    !amountB ||
+                    parseFloat(amountA) <= 0 ||
+                    parseFloat(amountB) <= 0 ||
+                    isNaN(parseFloat(amountA)) ||
+                    isNaN(parseFloat(amountB)) ? (
+                    "Enter Valid Amounts"
                   ) : (
                     "Add Liquidity"
                   )}
