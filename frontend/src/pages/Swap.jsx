@@ -5,6 +5,7 @@ import ActionButton from "../components/ActionButton";
 import TransactionList from "../components/TransactionList";
 
 import { getPairAddress, getReserves, swap } from "../utils/contractUtils";
+import { getAllUserSwaps } from "../utils/transactionLog";
 import { ethers } from "ethers";
 
 export default function Swap() {
@@ -15,6 +16,8 @@ export default function Swap() {
   const [amountOut, setAmountOut] = useState("");
   const [pairAddress, setPairAddress] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   useEffect(() => {
     const fetchEstimates = async () => {
@@ -58,6 +61,25 @@ export default function Swap() {
     fetchEstimates();
   }, [tokenA, tokenB, amountIn]);
 
+  // Fetch recent transactions when user connects
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!address) return;
+
+      setLoadingTransactions(true);
+      try {
+        const transactions = await getAllUserSwaps(address, 5);
+        setRecentTransactions(transactions);
+      } catch (err) {
+        console.error("Failed to fetch transactions:", err);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [address]);
+
   const handleSwap = async () => {
     if (!tokenA || !tokenB || !amountIn || !pairAddress) {
       alert("Please fill all fields.");
@@ -69,6 +91,14 @@ export default function Swap() {
       const parsedAmountIn = ethers.parseUnits(amountIn, 18);
       await swap(pairAddress, parsedAmountIn, tokenA.address);
       alert("✅ Swap successful!");
+
+      // Refresh transactions after successful swap
+      try {
+        const transactions = await getAllUserSwaps(address, 5);
+        setRecentTransactions(transactions);
+      } catch (err) {
+        console.warn("Failed to refresh transactions:", err);
+      }
     } catch (err) {
       console.error("Swap failed:", err);
       alert("❌ Swap failed.");
@@ -271,15 +301,99 @@ export default function Swap() {
 
       {/* Recent Transactions */}
       <div className="mt-8 bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
-          Recent Transactions
-        </h3>
-        <div className="text-center py-8 text-gray-500">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">📊</span>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">
+            Recent Transactions
+          </h3>
+          <div className="flex items-center gap-2">
+            {loadingTransactions && (
+              <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+            )}
+            <button
+              onClick={async () => {
+                if (!address || loadingTransactions) return;
+                setLoadingTransactions(true);
+                try {
+                  const transactions = await getAllUserSwaps(address, 5);
+                  setRecentTransactions(transactions);
+                } catch (err) {
+                  console.error("Failed to refresh transactions:", err);
+                } finally {
+                  setLoadingTransactions(false);
+                }
+              }}
+              disabled={loadingTransactions || !address}
+              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh transactions"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
           </div>
-          <p>Your recent swaps will appear here</p>
         </div>
+
+        {recentTransactions.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">📊</span>
+            </div>
+            <p>
+              {loadingTransactions
+                ? "Loading your recent swaps..."
+                : "Your recent swaps will appear here"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentTransactions.map((tx, index) => (
+              <div
+                key={`${tx.txHash}-${index}`}
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl border border-purple-100 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">🔄</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      {parseFloat(tx.inputAmount).toFixed(4)}{" "}
+                      {tx.inputTokenSymbol} →{" "}
+                      {parseFloat(tx.outputAmount).toFixed(4)}{" "}
+                      {tx.outputTokenSymbol}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {new Date(tx.timestamp * 1000).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <a
+                    href={`https://explorer.monad.xyz/tx/${tx.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                  >
+                    View →
+                  </a>
+                  <div className="text-xs text-gray-400">
+                    Block #{tx.blockNumber}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
