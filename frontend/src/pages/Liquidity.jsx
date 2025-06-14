@@ -7,6 +7,7 @@ import {
   getPairAddress,
   getLPBalance,
   addLiquidity,
+  removeLiquidity,
   claimRewards,
 } from "../utils/contractUtils";
 import { getUserTransactions } from "../utils/transactionLog";
@@ -18,6 +19,7 @@ export default function Liquidity() {
   const [tokenB, setTokenB] = useState(null);
   const [amountA, setAmountA] = useState("");
   const [amountB, setAmountB] = useState("");
+  const [amountLP, setAmountLP] = useState("");
   const [pairAddress, setPairAddress] = useState(null);
   const [lpBalance, setLpBalance] = useState("0.0");
   const [transactions, setTransactions] = useState([]);
@@ -114,6 +116,53 @@ export default function Liquidity() {
     } catch (err) {
       console.error("Add liquidity failed:", err);
       alert("❌ Add liquidity failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!pairAddress || !amountLP) {
+      alert("Please enter LP amount to remove.");
+      return;
+    }
+
+    // Validate amount is valid number greater than 0
+    const numAmountLP = parseFloat(amountLP);
+    const currentLP = parseFloat(lpBalance);
+
+    if (!amountLP || isNaN(numAmountLP) || numAmountLP <= 0) {
+      alert("Please enter a valid LP amount greater than 0.");
+      return;
+    }
+
+    if (numAmountLP > currentLP) {
+      alert(`Insufficient LP balance. You have ${lpBalance} LP tokens.`);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const parsedLP = ethers.parseUnits(amountLP.toString(), 18);
+      await removeLiquidity(pairAddress, parsedLP);
+      alert("💥 Liquidity removed successfully!");
+
+      // Refresh LP balance and transactions
+      const lp = await getLPBalance(pairAddress, address);
+      setLpBalance(lp);
+
+      try {
+        const txs = await getUserTransactions(pairAddress, address);
+        setTransactions(txs);
+      } catch (err) {
+        console.warn("Failed to refresh transactions:", err);
+      }
+
+      // Clear the input
+      setAmountLP("");
+    } catch (err) {
+      console.error("Remove liquidity failed:", err);
+      alert("❌ Remove liquidity failed.");
     } finally {
       setLoading(false);
     }
@@ -353,20 +402,169 @@ export default function Liquidity() {
 
             {activeTab === "remove" && (
               <div className="space-y-6">
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">🔄</span>
+                {/* Current Position Info */}
+                {tokenA && tokenB && pairAddress && (
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl p-6 border border-red-100">
+                    <h3 className="font-semibold text-gray-800 mb-4">
+                      Current Position
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Pool:</span>
+                        <span className="font-medium">
+                          {tokenA.symbol}/{tokenB.symbol}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">LP Balance:</span>
+                        <span className="font-medium">{lpBalance}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Pool Share:</span>
+                        <span className="font-medium">0.00%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Value:</span>
+                        <span className="font-medium">$0.00</span>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Remove Liquidity
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Remove your liquidity from pools and claim your tokens back
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Current LP Balance:{" "}
-                    <span className="font-semibold">{lpBalance}</span>
-                  </p>
+                )}
+
+                {/* LP Amount Input */}
+                <div className="space-y-3">
+                  <label className="text-gray-700 font-semibold">
+                    LP Tokens to Remove
+                  </label>
+                  <div
+                    className={`bg-gray-50 rounded-2xl p-4 border-2 transition-colors ${
+                      amountLP &&
+                      (isNaN(parseFloat(amountLP)) ||
+                        parseFloat(amountLP) <= 0 ||
+                        parseFloat(amountLP) > parseFloat(lpBalance))
+                        ? "border-red-200 focus-within:border-red-300"
+                        : "border-transparent focus-within:border-blue-200"
+                    }`}
+                  >
+                    <input
+                      type="number"
+                      placeholder="0.0"
+                      value={amountLP}
+                      onChange={(e) => setAmountLP(e.target.value)}
+                      className="w-full bg-transparent text-xl font-semibold text-gray-800 placeholder-gray-400 focus:outline-none"
+                      min="0"
+                      max={lpBalance}
+                      step="0.000001"
+                    />
+                    <div className="flex justify-between items-center mt-3">
+                      <div className="text-sm text-gray-500">
+                        Available: {lpBalance} LP
+                        {amountLP &&
+                          (isNaN(parseFloat(amountLP)) ||
+                            parseFloat(amountLP) <= 0) && (
+                            <span className="text-red-500 ml-2">
+                              • Enter a valid amount
+                            </span>
+                          )}
+                        {amountLP &&
+                          parseFloat(amountLP) > parseFloat(lpBalance) && (
+                            <span className="text-red-500 ml-2">
+                              • Insufficient balance
+                            </span>
+                          )}
+                      </div>
+                      <button
+                        onClick={() => setAmountLP(lpBalance)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        disabled={!lpBalance || parseFloat(lpBalance) === 0}
+                      >
+                        Max
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Percentage Buttons */}
+                <div className="grid grid-cols-4 gap-2">
+                  {[25, 50, 75, 100].map((percentage) => (
+                    <button
+                      key={percentage}
+                      onClick={() => {
+                        const amount =
+                          (parseFloat(lpBalance) * percentage) / 100;
+                        setAmountLP(amount.toString());
+                      }}
+                      disabled={!lpBalance || parseFloat(lpBalance) === 0}
+                      className="py-2 px-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 rounded-xl text-sm font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {percentage}%
+                    </button>
+                  ))}
+                </div>
+
+                {/* Expected Output */}
+                {amountLP && parseFloat(amountLP) > 0 && tokenA && tokenB && (
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-4">
+                    <h4 className="font-semibold text-gray-800 mb-3">
+                      You will receive:
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{tokenA.symbol}:</span>
+                        <span className="font-medium">~0.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{tokenB.symbol}:</span>
+                        <span className="font-medium">~0.00</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Remove Liquidity Button */}
+                <button
+                  onClick={handleRemove}
+                  disabled={
+                    loading ||
+                    !pairAddress ||
+                    !amountLP ||
+                    parseFloat(amountLP) <= 0 ||
+                    parseFloat(amountLP) > parseFloat(lpBalance) ||
+                    isNaN(parseFloat(amountLP))
+                  }
+                  className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-none"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Removing Liquidity...
+                    </div>
+                  ) : !pairAddress ? (
+                    "Select Pool First"
+                  ) : !amountLP ||
+                    parseFloat(amountLP) <= 0 ||
+                    isNaN(parseFloat(amountLP)) ? (
+                    "Enter LP Amount"
+                  ) : parseFloat(amountLP) > parseFloat(lpBalance) ? (
+                    "Insufficient LP Balance"
+                  ) : (
+                    `Remove ${amountLP} LP Tokens`
+                  )}
+                </button>
+
+                {/* Warning */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-yellow-600 text-lg">⚠️</span>
+                    <div className="text-sm text-yellow-800">
+                      <p className="font-semibold mb-1">Important:</p>
+                      <p>
+                        Removing liquidity will return your tokens
+                        proportionally. You may receive different amounts than
+                        originally deposited due to trading activity.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
