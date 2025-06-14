@@ -94,25 +94,13 @@ export default function Liquidity() {
         parsedB: parsedB.toString(),
       });
 
-      const tokenAContract = new ethers.Contract(
+      await addLiquidity(
+        pairAddress,
+        parsedA,
+        parsedB,
         tokenA.address,
-        [
-          "function approve(address spender, uint256 amount) public returns (bool)",
-        ],
-        signer
+        tokenB.address
       );
-      const tokenBContract = new ethers.Contract(
-        tokenB.address,
-        [
-          "function approve(address spender, uint256 amount) public returns (bool)",
-        ],
-        signer
-      );
-
-      await (await tokenAContract.approve(pairAddress, parsedA)).wait();
-      await (await tokenBContract.approve(pairAddress, parsedB)).wait();
-
-      await addLiquidity(pairAddress, parsedA, parsedB);
       showSuccess("Liquidity added successfully!");
     } catch (err) {
       console.error("Add liquidity failed:", err);
