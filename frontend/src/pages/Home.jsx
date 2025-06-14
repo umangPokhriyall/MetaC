@@ -1,19 +1,36 @@
-import metaCowLogo from "../assets/MetaCowLogo.png"; // Replace with actual logo path
+import metaCowLogo from "../assets/MetaCowLogo.png";
 
 export default function Home() {
   return (
-    <div className="text-center mt-10">
-      <img src={metaCowLogo} alt="MetaCow logo" className="w-32 mx-auto mb-6" />
-      <h1 className="text-4xl font-bold text-purple-600">Welcome to MetaCow</h1>
-      <p className="text-lg text-gray-600 mt-4">
-        A minimal decentralized exchange powered by cows and code. 🐮💱
+    <div className="bg-gradient-to-b from-purple-50 to-white min-h-[80vh] flex flex-col justify-center items-center text-center px-4">
+      {/* Logo */}
+      <img
+        src={metaCowLogo}
+        alt="MetaCow logo"
+        className="w-28 h-28 md:w-36 md:h-36 mb-6 animate-bounce drop-shadow-md"
+      />
+
+      {/* Title */}
+      <h1 className="text-5xl md:text-6xl font-extrabold text-purple-700 drop-shadow-sm">
+        Welcome to MetaCow
+      </h1>
+
+      {/* Subheading */}
+      <p className="text-lg md:text-xl text-gray-600 max-w-2xl mt-4">
+        A next-gen minimal DEX built for speed, fun, and fairness. Powered by cows 🐮 and code 💻.
+        Trade, provide liquidity, earn rewards — all in one place.
       </p>
+
+      {/* CTA Button */}
       <a
         href="/swap"
-        className="inline-block mt-8 px-6 py-3 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition"
+        className="mt-8 inline-block px-8 py-3 bg-purple-600 text-white text-lg rounded-xl shadow-md hover:bg-purple-700 transition"
       >
-        Launch App
+        🚀 Launch DEX
       </a>
+
+      {/* Footer-ish Text */}
+      <p className="text-sm text-gray-400 mt-6">Built on Monad Testnet · Gasless ❤️‍🔥</p>
     </div>
   );
 }

@@ -1,12 +1,26 @@
-import { getEthereumProvider } from "./metamaskClient";
-import { FACTORY_ADDRESS, FACTORY_ABI, PAIR_ABI } from "./constants";
-import { ethers } from "ethers";
+// ✅ contractUtils.js — updated for Wagmi + Viem
+
+import { ethers } from 'ethers';
+import { createWalletClient, custom, getAddress } from 'viem';
+import { mainnet } from 'viem/chains';
+import { FACTORY_ADDRESS, FACTORY_ABI, PAIR_ABI } from './constants';
+
+async function getWalletClient() {
+  if (!window.ethereum) throw new Error("No wallet found");
+  const walletClient = createWalletClient({
+    chain: mainnet,
+    transport: custom(window.ethereum),
+  });
+  return walletClient;
+}
 
 // ✅ Get signer and provider
 export async function getProviderAndSigner() {
-  const provider = new ethers.BrowserProvider(await getEthereumProvider());
-  const signer = await provider.getSigner();
-  return { provider, signer };
+  const walletClient = await getWalletClient();
+  const [address] = await walletClient.getAddresses();
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner(address);
+  return { provider, signer, address };
 }
 
 // ✅ Get Factory contract instance
@@ -63,12 +77,11 @@ export async function getPairAddress(tokenA, tokenB) {
 
 // ✅ Get LP token balance for a user
 export async function getLPBalance(pairAddress, userAddress) {
-  const { provider } = await getProviderAndSigner(); 
+  const provider = new ethers.BrowserProvider(window.ethereum);
   const pair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
-  const balance = await pair.getLPBalance(userAddress); // ✅ FIXED
+  const balance = await pair.getLPBalance(userAddress);
   return ethers.formatUnits(balance, 18);
 }
-
 
 // ✅ Add liquidity to a pair
 export async function addLiquidity(pairAddress, amountA, amountB) {

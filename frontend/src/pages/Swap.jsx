@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import TokenSelector from "../components/TokenSelector";
 import ActionButton from "../components/ActionButton";
+import TransactionList from "../components/TransactionList";
+
 import { getPairAddress, getReserves, swap } from "../utils/contractUtils";
 import { ethers } from "ethers";
 
@@ -11,6 +13,27 @@ export default function Swap() {
   const [amountOut, setAmountOut] = useState("");
   const [pairAddress, setPairAddress] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [userAddress, setUserAddress] = useState(null);
+const [transactions, setTransactions] = useState([]);
+
+useEffect(() => {
+  const fetchAddressAndTxs = async () => {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      setUserAddress(address);
+
+      if (pairAddress) {
+        const txs = await getUserTransactions(pairAddress, address);
+        setTransactions(txs);
+      }
+    } catch (err) {
+      console.error("Failed to fetch address or txs:", err);
+    }
+  };
+  fetchAddressAndTxs();
+}, [pairAddress]);
 
   useEffect(() => {
     const fetchEstimates = async () => {
@@ -27,7 +50,6 @@ export default function Swap() {
           const { reserveA, reserveB } = await getReserves(pair);
 
           let inputReserve, outputReserve;
-
           if (tokenA.address.toLowerCase() < tokenB.address.toLowerCase()) {
             inputReserve = reserveA;
             outputReserve = reserveB;
@@ -38,9 +60,8 @@ export default function Swap() {
 
           const input = parseFloat(amountIn);
           const inputWithFee = input * 997;
-
           const numerator = inputWithFee * outputReserve;
-          const denominator = (inputReserve * 1000) + inputWithFee;
+          const denominator = inputReserve * 1000 + inputWithFee;
           const output = numerator / denominator;
 
           setAmountOut(output.toFixed(6));
@@ -66,10 +87,10 @@ export default function Swap() {
       setLoading(true);
       const parsedAmountIn = ethers.parseUnits(amountIn, 18);
       await swap(pairAddress, parsedAmountIn, tokenA.address);
-      alert("Swap successful!");
+      alert("✅ Swap successful!");
     } catch (err) {
       console.error("Swap failed:", err);
-      alert("Swap failed. See console for details.");
+      alert("❌ Swap failed.");
     } finally {
       setLoading(false);
     }
@@ -83,46 +104,60 @@ export default function Swap() {
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-12 p-6 bg-white shadow-lg rounded-2xl">
-      <h2 className="text-3xl font-bold text-center text-purple-700 mb-6">Swap Tokens</h2>
+    <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-2xl shadow-xl border border-purple-100">
+      <h2 className="text-3xl font-extrabold text-center text-purple-700 mb-8">
+        💱 Swap Tokens
+      </h2>
 
       <div className="space-y-6">
         {/* From */}
-        <div>
-          <label className="block text-gray-600 mb-1">From</label>
+        <div className="space-y-2">
+          <label className="block text-gray-600 font-medium">From</label>
           <TokenSelector selected={tokenA} onSelect={setTokenA} />
           <input
             type="number"
-            placeholder="0.0"
+            placeholder="Enter amount"
             value={amountIn}
             onChange={(e) => setAmountIn(e.target.value)}
-            className="mt-2 w-full border rounded-lg px-4 py-2 text-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="w-full border border-gray-300 px-4 py-2 rounded-xl bg-gray-50 text-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
         </div>
 
-        <div className="text-center">
+        {/* Switch */}
+        <div className="flex justify-center">
           <button
             onClick={handleSwitch}
-            className="px-4 py-1 bg-gray-200 text-sm rounded-lg hover:bg-gray-300"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-1 rounded-lg text-sm shadow-sm"
           >
-            ⇅ Switch
+            ⇅ Switch Tokens
           </button>
         </div>
 
         {/* To */}
-        <div>
-          <label className="block text-gray-600 mb-1">To</label>
+        <div className="space-y-2">
+          <label className="block text-gray-600 font-medium">To</label>
           <TokenSelector selected={tokenB} onSelect={setTokenB} />
           <input
             type="text"
             placeholder="Estimated output"
             value={amountOut}
             disabled
-            className="mt-2 w-full border rounded-lg px-4 py-2 text-lg bg-gray-100 cursor-not-allowed"
+            className="w-full border border-gray-200 px-4 py-2 rounded-xl bg-gray-100 text-lg text-gray-500 cursor-not-allowed"
           />
         </div>
 
-        <ActionButton onClick={handleSwap} text={loading ? "Swapping..." : "Swap"} />
+        {/* Swap Button */}
+        <ActionButton
+          text={loading ? "Swapping..." : "Swap"}
+          onClick={handleSwap}
+        />
+
+        {/* Optional message */}
+        {pairAddress && (
+          <p className="text-xs text-gray-400 text-center mt-2">
+            ⚖️ Using pair: <span className="font-mono">{pairAddress.slice(0, 6)}...{pairAddress.slice(-4)}</span>
+          </p>
+        )}
       </div>
     </div>
   );

@@ -66,7 +66,7 @@ export default function Liquidity() {
 
   const handleAdd = async () => {
     if (!pairAddress || !amountA || !amountB || !tokenA || !tokenB) {
-      alert("Fill all fields properly.");
+      alert("Please fill all fields.");
       return;
     }
 
@@ -84,16 +84,14 @@ export default function Liquidity() {
         "function approve(address spender, uint256 amount) public returns (bool)"
       ], signer);
 
-      console.log("Approving tokens...");
       await (await tokenAContract.approve(pairAddress, parsedA)).wait();
       await (await tokenBContract.approve(pairAddress, parsedB)).wait();
 
-      console.log("Calling addLiquidity with:", parsedA.toString(), parsedB.toString());
       await addLiquidity(pairAddress, parsedA, parsedB);
-      alert("Liquidity added!");
+      alert("✅ Liquidity added!");
     } catch (err) {
       console.error("Add liquidity failed:", err);
-      alert("Add liquidity failed. Check console for details.");
+      alert("❌ Add liquidity failed.");
     } finally {
       setLoading(false);
     }
@@ -104,43 +102,56 @@ export default function Liquidity() {
     setLoading(true);
     try {
       await claimRewards(pairAddress);
-      alert("Rewards claimed!");
+      alert("🎉 Rewards claimed!");
     } catch (err) {
       console.error("Claim rewards failed:", err);
-      alert("Claim failed. Check console for details.");
+      alert("❌ Claim failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-12 p-6 bg-white shadow-lg rounded-2xl">
-      <h2 className="text-3xl font-bold text-center text-purple-700 mb-6">Manage Liquidity</h2>
+    <div className="max-w-xl mx-auto mt-12 p-6 bg-white border border-purple-100 shadow-xl rounded-2xl">
+      <h2 className="text-3xl font-extrabold text-center text-purple-700 mb-8">💧 Provide Liquidity</h2>
 
       <div className="space-y-6">
-        <TokenSelector selected={tokenA} onSelect={setTokenA} />
-        <TokenSelector selected={tokenB} onSelect={setTokenB} />
+        {/* Token Selectors */}
+        <div>
+          <label className="block text-gray-600 font-medium mb-1">Token A</label>
+          <TokenSelector selected={tokenA} onSelect={setTokenA} />
+        </div>
+        <div>
+          <label className="block text-gray-600 font-medium mb-1">Token B</label>
+          <TokenSelector selected={tokenB} onSelect={setTokenB} />
+        </div>
 
+        {/* Amount Inputs */}
         <input
           type="number"
           placeholder="Amount Token A"
           value={amountA}
           onChange={(e) => setAmountA(e.target.value)}
-          className="w-full border px-4 py-2 rounded-lg"
+          className="w-full border border-gray-300 px-4 py-2 rounded-xl bg-gray-50 text-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
         />
         <input
           type="number"
           placeholder="Amount Token B"
           value={amountB}
           onChange={(e) => setAmountB(e.target.value)}
-          className="w-full border px-4 py-2 rounded-lg"
+          className="w-full border border-gray-300 px-4 py-2 rounded-xl bg-gray-50 text-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
         />
 
+        {/* Action Buttons */}
         <ActionButton text={loading ? "Processing..." : "Add Liquidity"} onClick={handleAdd} />
         <ActionButton text={loading ? "Processing..." : "Claim Rewards"} onClick={handleClaim} />
 
-        <p className="text-sm text-gray-600">Your LP Balance: {lpBalance}</p>
+        {/* LP Balance */}
+        <div className="text-center text-sm text-gray-600 mt-2">
+          📊 <strong>LP Balance:</strong> {lpBalance}
+        </div>
 
+        {/* Transactions */}
         <TransactionList userAddress={userAddress} transactions={transactions} />
       </div>
     </div>

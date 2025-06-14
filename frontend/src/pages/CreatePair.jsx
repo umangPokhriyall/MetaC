@@ -12,8 +12,12 @@ export default function CreatePair() {
 
   const handleCreatePair = async () => {
     try {
-      if (!tokenA || !tokenB || !ethers.isAddress(tokenA.address) || !ethers.isAddress(tokenB.address)) {
-        return setStatus("❌ Invalid token selections");
+      if (
+        !tokenA || !tokenB ||
+        !ethers.isAddress(tokenA.address) ||
+        !ethers.isAddress(tokenB.address)
+      ) {
+        return setStatus("❌ Please select valid token addresses.");
       }
 
       setStatus("⏳ Creating pair...");
@@ -22,8 +26,8 @@ export default function CreatePair() {
       setStatus(`✅ Pair created at: ${pair}`);
       fetchExistingPairs();
     } catch (err) {
-      console.error(err);
-      setStatus("❌ Failed to create pair");
+      console.error("Create pair failed", err);
+      setStatus("❌ Failed to create pair. Check console.");
     }
   };
 
@@ -33,8 +37,8 @@ export default function CreatePair() {
       const count = await factory.allPairsLength();
       const pairs = [];
       for (let i = 0; i < count; i++) {
-        const pairAddress = await factory.allPairs(i);
-        pairs.push(pairAddress);
+        const pairAddr = await factory.allPairs(i);
+        pairs.push(pairAddr);
       }
       setExistingPairs(pairs);
     } catch (err) {
@@ -47,37 +51,63 @@ export default function CreatePair() {
   }, []);
 
   return (
-    <div className="max-w-xl mx-auto mt-12 p-6 bg-white shadow-lg rounded-xl">
-      <h2 className="text-2xl font-bold text-purple-700 mb-4">Create New Pair</h2>
+    <div className="max-w-xl mx-auto mt-12 p-6 bg-white border border-purple-100 shadow-xl rounded-2xl">
+      <h2 className="text-3xl font-extrabold text-center text-purple-700 mb-8">
+        🔧 Create Token Pair
+      </h2>
 
-      <div className="space-y-4">
-        <TokenSelector selected={tokenA} onSelect={setTokenA} />
-        <TokenSelector selected={tokenB} onSelect={setTokenB} />
+      <div className="space-y-6">
+        {/* Token Selectors */}
+        <div>
+          <label className="text-gray-600 text-sm font-medium">Token A</label>
+          <TokenSelector selected={tokenA} onSelect={setTokenA} />
+        </div>
+        <div>
+          <label className="text-gray-600 text-sm font-medium">Token B</label>
+          <TokenSelector selected={tokenB} onSelect={setTokenB} />
+        </div>
 
+        {/* Action Button */}
         <button
           onClick={handleCreatePair}
-          className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition"
+          className="w-full bg-purple-600 text-white py-3 rounded-xl font-semibold text-lg hover:bg-purple-700 transition shadow"
         >
-          Create Pair
+          🚀 Create Pair
         </button>
 
+        {/* Status Message */}
+        {status && (
+          <div
+            className={`text-sm px-3 py-2 rounded-md mt-2 ${
+              status.startsWith("✅")
+                ? "bg-green-50 text-green-700 border border-green-300"
+                : "bg-red-50 text-red-700 border border-red-300"
+            }`}
+          >
+            {status}
+          </div>
+        )}
+
+        {/* Pair Created */}
         {pairAddress && (
-          <p className="text-sm mt-4 text-gray-600">
-            ✅ Pair created at: {pairAddress}
-          </p>
+          <div className="text-sm mt-3 text-center text-gray-600">
+            🔗 <strong>New Pair:</strong><br />
+            <span className="font-mono">{pairAddress}</span>
+          </div>
         )}
 
-        {status && !pairAddress && (
-          <p className="text-sm mt-4 text-gray-600">{status}</p>
-        )}
-
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2 text-purple-700">Existing Pairs</h3>
-          <ul className="space-y-1 text-sm text-gray-700">
-            {existingPairs.map((pair, i) => (
-              <li key={i} className="truncate">{pair}</li>
-            ))}
-          </ul>
+        {/* Existing Pairs */}
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold text-purple-700 mb-3">📦 Existing Pairs</h3>
+          {existingPairs.length === 0 ? (
+            <p className="text-sm text-gray-500">No pairs created yet.</p>
+          ) : (
+            <ul className="max-h-40 overflow-y-auto bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2 text-sm font-mono text-gray-700">
+              {existingPairs.map((pair, i) => (
+                <li key={i} className="truncate">{pair}</li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
