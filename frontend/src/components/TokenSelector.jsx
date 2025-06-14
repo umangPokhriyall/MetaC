@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 
 // Update with real deployed addresses
 const tokenList = [
   { symbol: "TKA", address: "0x9e53abdDBFa9DC6A9bCD9D0e5DD7144F2701718D" },
-  { symbol: "TKB", address: "0x1e792D4c34c3d04Bd127aFEf0c1696E912c755aa" },
-  { symbol: "USDT", address: "0x2A07A0013877e3bcCDd42Da8171457B0B54EB54d" },
+  { symbol: "TKB", address: "0xa8b734cD96949d80eb5bFa7FFedF27c00fFfc981" },
+  { symbol: "USDT", address: "0x5c4f44985Ea063cb74C323429Da7D72d51F6049f" },
   { symbol: "MOO", address: "0x2AaF51745dbf59938fD364F08f06E6d8B34f4b49" },
 ];
 
