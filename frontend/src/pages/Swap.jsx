@@ -18,6 +18,7 @@ export default function Swap() {
   const [loading, setLoading] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [priceHistory, setPriceHistory] = useState([]);
 
   useEffect(() => {
     const fetchEstimates = async () => {
@@ -61,6 +62,40 @@ export default function Swap() {
     fetchEstimates();
   }, [tokenA, tokenB, amountIn]);
 
+  // Process transactions into price history data
+  const processPriceHistory = (transactions) => {
+    if (!tokenA || !tokenB || transactions.length === 0) return [];
+
+    const priceData = transactions
+      .filter((tx) => {
+        // Filter transactions for the current token pair
+        const isRelevantPair =
+          (tx.inputTokenSymbol === tokenA.symbol &&
+            tx.outputTokenSymbol === tokenB.symbol) ||
+          (tx.inputTokenSymbol === tokenB.symbol &&
+            tx.outputTokenSymbol === tokenA.symbol);
+        return isRelevantPair;
+      })
+      .map((tx) => {
+        // Calculate price (how much tokenB per tokenA)
+        let price;
+        if (tx.inputTokenSymbol === tokenA.symbol) {
+          price = parseFloat(tx.outputAmount) / parseFloat(tx.inputAmount);
+        } else {
+          price = parseFloat(tx.inputAmount) / parseFloat(tx.outputAmount);
+        }
+
+        return {
+          timestamp: tx.timestamp,
+          price: price,
+          volume: parseFloat(tx.inputAmount),
+        };
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    return priceData;
+  };
+
   // Fetch recent transactions when user connects
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -68,8 +103,12 @@ export default function Swap() {
 
       setLoadingTransactions(true);
       try {
-        const transactions = await getAllUserSwaps(address, 5);
-        setRecentTransactions(transactions);
+        const transactions = await getAllUserSwaps(address, 20); // Get more for chart
+        setRecentTransactions(transactions.slice(0, 5)); // Keep only 5 for display
+
+        // Process price history
+        const priceData = processPriceHistory(transactions);
+        setPriceHistory(priceData);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
       } finally {
@@ -78,7 +117,7 @@ export default function Swap() {
     };
 
     fetchTransactions();
-  }, [address]);
+  }, [address, tokenA, tokenB]);
 
   const handleSwap = async () => {
     if (!tokenA || !tokenB || !amountIn || !pairAddress) {
@@ -94,8 +133,12 @@ export default function Swap() {
 
       // Refresh transactions after successful swap
       try {
-        const transactions = await getAllUserSwaps(address, 5);
-        setRecentTransactions(transactions);
+        const transactions = await getAllUserSwaps(address, 20);
+        setRecentTransactions(transactions.slice(0, 5));
+
+        // Update price history
+        const priceData = processPriceHistory(transactions);
+        setPriceHistory(priceData);
       } catch (err) {
         console.warn("Failed to refresh transactions:", err);
       }
@@ -298,6 +341,207 @@ export default function Swap() {
           )}
         </div>
       </div>
+
+      {/* Price Chart */}
+      {tokenA && tokenB && (
+        <div className="mt-8 bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">
+              {tokenA.symbol}/{tokenB.symbol} Price Chart
+            </h3>
+            <div className="text-sm text-gray-500">
+              {priceHistory.length > 0
+                ? `${priceHistory.length} trades`
+                : "No trade data"}
+            </div>
+          </div>
+
+          {priceHistory.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📈</span>
+              </div>
+              <p>No trading data available for this pair</p>
+              <p className="text-sm mt-1">
+                Make some swaps to see the price chart!
+              </p>
+            </div>
+          ) : (
+            <div className="relative">
+              {/* Chart Container */}
+              <div className="h-64 w-full bg-gradient-to-b from-purple-50 to-blue-50 rounded-2xl p-4 overflow-hidden">
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 800 200"
+                  className="overflow-visible"
+                >
+                  {/* Grid Lines */}
+                  <defs>
+                    <pattern
+                      id="grid"
+                      width="80"
+                      height="40"
+                      patternUnits="userSpaceOnUse"
+                    >
+                      <path
+                        d="M 80 0 L 0 0 0 40"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="1"
+                        opacity="0.5"
+                      />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#grid)" />
+
+                  {/* Price Line */}
+                  {priceHistory.length > 1 &&
+                    (() => {
+                      const maxPrice = Math.max(
+                        ...priceHistory.map((p) => p.price)
+                      );
+                      const minPrice = Math.min(
+                        ...priceHistory.map((p) => p.price)
+                      );
+                      const priceRange = maxPrice - minPrice || 1;
+
+                      const points = priceHistory
+                        .map((point, index) => {
+                          const x =
+                            (index / (priceHistory.length - 1)) * 760 + 20;
+                          const y =
+                            180 - ((point.price - minPrice) / priceRange) * 160;
+                          return `${x},${y}`;
+                        })
+                        .join(" ");
+
+                      const gradientPoints = priceHistory.map(
+                        (point, index) => {
+                          const x =
+                            (index / (priceHistory.length - 1)) * 760 + 20;
+                          const y =
+                            180 - ((point.price - minPrice) / priceRange) * 160;
+                          return { x, y };
+                        }
+                      );
+
+                      return (
+                        <>
+                          {/* Gradient Fill */}
+                          <defs>
+                            <linearGradient
+                              id="priceGradient"
+                              x1="0%"
+                              y1="0%"
+                              x2="0%"
+                              y2="100%"
+                            >
+                              <stop
+                                offset="0%"
+                                stopColor="#8b5cf6"
+                                stopOpacity="0.3"
+                              />
+                              <stop
+                                offset="100%"
+                                stopColor="#3b82f6"
+                                stopOpacity="0.1"
+                              />
+                            </linearGradient>
+                          </defs>
+                          <path
+                            d={`M ${gradientPoints[0].x},180 L ${points} L ${
+                              gradientPoints[gradientPoints.length - 1].x
+                            },180 Z`}
+                            fill="url(#priceGradient)"
+                          />
+
+                          {/* Price Line */}
+                          <polyline
+                            points={points}
+                            fill="none"
+                            stroke="url(#gradient)"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+
+                          {/* Gradient for line */}
+                          <defs>
+                            <linearGradient
+                              id="gradient"
+                              x1="0%"
+                              y1="0%"
+                              x2="100%"
+                              y2="0%"
+                            >
+                              <stop offset="0%" stopColor="#8b5cf6" />
+                              <stop offset="100%" stopColor="#3b82f6" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Data Points */}
+                          {gradientPoints.map((point, index) => (
+                            <circle
+                              key={index}
+                              cx={point.x}
+                              cy={point.y}
+                              r="4"
+                              fill="white"
+                              stroke="#8b5cf6"
+                              strokeWidth="2"
+                              className="hover:r-6 transition-all cursor-pointer"
+                            >
+                              <title>
+                                Price: {priceHistory[index].price.toFixed(6)}{" "}
+                                {tokenB.symbol}/{tokenA.symbol}
+                                {"\n"}Time:{" "}
+                                {new Date(
+                                  priceHistory[index].timestamp * 1000
+                                ).toLocaleString()}
+                                {"\n"}Volume:{" "}
+                                {priceHistory[index].volume.toFixed(4)}{" "}
+                                {tokenA.symbol}
+                              </title>
+                            </circle>
+                          ))}
+                        </>
+                      );
+                    })()}
+                </svg>
+              </div>
+
+              {/* Chart Info */}
+              <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-gray-600">Current Price</div>
+                  <div className="font-semibold text-purple-600">
+                    {priceHistory.length > 0
+                      ? priceHistory[priceHistory.length - 1].price.toFixed(6)
+                      : "0.000000"}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-600">24h High</div>
+                  <div className="font-semibold text-green-600">
+                    {priceHistory.length > 0
+                      ? Math.max(...priceHistory.map((p) => p.price)).toFixed(6)
+                      : "0.000000"}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-600">24h Low</div>
+                  <div className="font-semibold text-red-600">
+                    {priceHistory.length > 0
+                      ? Math.min(...priceHistory.map((p) => p.price)).toFixed(6)
+                      : "0.000000"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recent Transactions */}
       <div className="mt-8 bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
