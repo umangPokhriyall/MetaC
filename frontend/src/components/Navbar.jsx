@@ -97,7 +97,7 @@ export default function Navbar() {
             {/* Network Status */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              Ethereum
+              Monad Testnet
             </div>
 
             {/* Wallet Button */}
